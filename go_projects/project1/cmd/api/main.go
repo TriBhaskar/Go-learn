@@ -1,128 +1,66 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
+	"go_project1/internal/handlers"
+	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
-func hello(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /hello")
-    fmt.Fprintf(w, "hello\n")
-}
-
-func headers(w http.ResponseWriter, req *http.Request) {
-
-    for name, headers := range req.Header {
-        for _, h := range headers {
-            fmt.Fprintf(w, "%v: %v\n", name, h)
-        }
-    }
-}
-
-func handleGetRequest(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /greet")
-	fmt.Fprintf(w, "GET request received\n")
-}
-
-func handlePostRequest(w http.ResponseWriter, req *http.Request) {
-    // Check content type
-    contentType := req.Header.Get("Content-Type")
-    if contentType != "application/json" {
-        http.Error(w, "Content-Type must be application/json", http.StatusUnsupportedMediaType)
-        return
-    }
-
-    // Read the body
-    body, err := io.ReadAll(req.Body)
-    if err != nil {
-        http.Error(w, fmt.Sprintf("Error reading body: %v", err), http.StatusBadRequest)
-        return
-    }
-    defer req.Body.Close()
-
-    // Handle empty body
-    if len(body) == 0 {
-        http.Error(w, "Request body is empty", http.StatusBadRequest)
-        return
-    }
-
-    // Parse JSON
-    var data map[string]interface{}
-    if err := json.Unmarshal(body, &data); err != nil {
-        http.Error(w, fmt.Sprintf("Error parsing JSON: %v", err), http.StatusBadRequest)
-        return
-    }
-
-    // Log the parsed data
-    fmt.Printf("Api call to /data with body: %v\n", data)
-
-    // Send JSON response
-    w.Header().Set("Content-Type", "application/json")
-    response := map[string]interface{}{
-        "message": "POST request received",
-        "status": "success",
-        "received_data": data,
-    }
-    
-    if err := json.NewEncoder(w).Encode(response); err != nil {
-        http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
-        return
-    }
-}
-
-func handlePutRequest(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /update")
-	fmt.Fprintf(w, "PUT request received\n")
-}
-
-func handleDeleteRequest(w http.ResponseWriter, req *http.Request) {
-
-	fmt.Println("Api call to /delete")
-	fmt.Fprintf(w, "DELETE request received\n")
-}
-
-func handlePatchRequest(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /modify")
-	fmt.Fprintf(w, "PATCH request received\n")
-}
-
-func handleOptionsRequest(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /options")
-	fmt.Fprintf(w, "OPTIONS request received\n")
-}
-
-func handleHeadRequest(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /head")
-	fmt.Fprintf(w, "HEAD request received\n")
-}
-
-func handleTraceRequest(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /trace")
-	fmt.Fprintf(w, "TRACE request received\n")
-}
-
 func main() {
+	// Initialize handler
+	apiHandler := handlers.NewAPIHandler()
+
+	// Create new serve mux
 	mux := http.NewServeMux()
-    http.HandleFunc("/hello", hello)
-    http.HandleFunc("/headers", headers)
 
-	mux.HandleFunc("GET /greet", handleGetRequest)
+	// Register routes
+	mux.HandleFunc("/hello", apiHandler.Hello)
+	mux.HandleFunc("/headers", apiHandler.Headers)
+	mux.HandleFunc("GET /greet", apiHandler.HandleGet)
+	mux.HandleFunc("POST /data", apiHandler.HandlePost)
+	mux.HandleFunc("PUT /update", apiHandler.HandlePut)
+	mux.HandleFunc("DELETE /delete", apiHandler.HandleDelete)
+	mux.HandleFunc("PATCH /modify", apiHandler.HandlePatch)
+	mux.HandleFunc("OPTIONS /options", apiHandler.HandleOptions)
+	mux.HandleFunc("HEAD /head", apiHandler.HandleHead)
+	mux.HandleFunc("TRACE /trace", apiHandler.HandleTrace)
 
-	mux.HandleFunc("POST /data", handlePostRequest) 
+	// Create server with configuration
+	server := &http.Server{
+		Addr:         ":8090",
+		Handler:      mux,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
 
-	mux.HandleFunc("PUT /update", handlePutRequest)
+	// Start server in a goroutine
+	go func() {
+		fmt.Printf("Server starting on port %s\n", server.Addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Server failed to start: %v\n", err)
+		}
+	}()
 
-	mux.HandleFunc("DELETE /delete", handleDeleteRequest)
+	// Wait for interrupt signal to gracefully shutdown the server
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
 
-	mux.HandleFunc("PATCH /modify", handlePatchRequest)
+	// Create a deadline for graceful shutdown
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
 
-	mux.HandleFunc("OPTIONS /options", handleOptionsRequest)
+	fmt.Println("\nShutting down server...")
+	if err := server.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v\n", err)
+	}
 
-	mux.HandleFunc("HEAD /head", handleHeadRequest)
-
-	mux.HandleFunc("TRACE /trace", handleTraceRequest)
-
-    http.ListenAndServe(":8090", mux)
+	fmt.Println("Server exited properly")
 }
