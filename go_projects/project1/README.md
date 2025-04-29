@@ -2,18 +2,38 @@
 
 ## Description
 
-This is a learning project to explore Go programming concepts and best practices.
+This is a learning project implementing a RESTful Blog Post API using Go with an in-memory database.
 
-## Getting Started
+## Features
 
-### Prerequisites
+- RESTful API endpoints for blog post management
+- In-memory database using hashicorp/go-memdb
+- Graceful server shutdown
+- Structured project layout
+- JSON response handling
+
+## Prerequisites
 
 - Go 1.20 or higher installed on your system
 - Basic understanding of Go programming
-- MySQL or PostgreSQL database installed
 - Your preferred code editor (VS Code recommended)
 
-### Installation
+## Project Structure
+
+```
+project1/
+├── cmd/
+│   └── api/
+│       └── main.go         # Application entry point
+├── internal/
+│   ├── database/          # Database operations
+│   ├── handlers/          # HTTP request handlers
+│   ├── models/            # Data structures
+│   └── routes/            # Route definitions
+└── README.md
+```
+
+## Installation
 
 1. Clone the repository:
    ```bash
@@ -23,37 +43,53 @@ This is a learning project to explore Go programming concepts and best practices
    ```bash
    cd project1
    ```
-3. Initialize the Go module:
-   ```bash
-   go mod init project1
-   ```
-4. Install dependencies:
+3. Install dependencies:
    ```bash
    go mod tidy
    ```
 
 ## Usage
 
-This CRUD application allows you to:
-
-- Create new blog posts
-- Read existing posts
-- Update post content
-- Delete posts
-
 Run the project:
 
 ```bash
-go run main.go
+go run cmd/api/main.go
 ```
 
-Access the API endpoints at `http://localhost:8080`:
+The server will start on `http://localhost:8090`
 
-- `POST /posts` - Create a new post
-- `GET /posts` - List all posts
-- `GET /posts/{id}` - Get a specific post
-- `PUT /posts/{id}` - Update a post
-- `DELETE /posts/{id}` - Delete a post
+### API Endpoints
+
+| Method | Endpoint          | Description                  |
+| ------ | ----------------- | ---------------------------- |
+| GET    | `/api/posts`      | Get all blog posts           |
+| GET    | `/api/posts/{id}` | Get a specific blog post     |
+| POST   | `/api/posts`      | Create a new blog post       |
+| PUT    | `/api/posts/{id}` | Update an existing blog post |
+| DELETE | `/api/posts/{id}` | Delete a blog post           |
+
+### Blog Post Structure
+
+```json
+{
+  "id": "string",
+  "title": "string",
+  "content": "string",
+  "author": "string",
+  "tags": ["string"],
+  "published": boolean,
+  "created_at": "string",
+  "updated_at": "string"
+}
+```
+
+## Database
+
+The application uses an in-memory database (`hashicorp/go-memdb`) which means:
+
+- Data persists only during runtime
+- Perfect for development and testing
+- Data is lost when the server stops
 
 ## Contributing
 
