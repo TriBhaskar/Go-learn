@@ -3,7 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"go_project1/internal/handlers"
+	"go_project1/internal/database"
+	"go_project1/internal/routes"
 	"log"
 	"net/http"
 	"os"
@@ -14,22 +15,25 @@ import (
 
 func main() {
 	// Initialize handler
-	apiHandler := handlers.NewAPIHandler()
+	err := database.InitDB()
+	if err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
 
 	// Create new serve mux
-	mux := http.NewServeMux()
+	mux := routes.SetupRoutes()
 
 	// Register routes
-	mux.HandleFunc("/hello", apiHandler.Hello)
-	mux.HandleFunc("/headers", apiHandler.Headers)
-	mux.HandleFunc("GET /greet", apiHandler.HandleGet)
-	mux.HandleFunc("POST /data", apiHandler.HandlePost)
-	mux.HandleFunc("PUT /update", apiHandler.HandlePut)
-	mux.HandleFunc("DELETE /delete", apiHandler.HandleDelete)
-	mux.HandleFunc("PATCH /modify", apiHandler.HandlePatch)
-	mux.HandleFunc("OPTIONS /options", apiHandler.HandleOptions)
-	mux.HandleFunc("HEAD /head", apiHandler.HandleHead)
-	mux.HandleFunc("TRACE /trace", apiHandler.HandleTrace)
+	// mux.HandleFunc("/hello", apiHandler.Hello)
+	// mux.HandleFunc("/headers", apiHandler.Headers)
+	// mux.HandleFunc("GET /greet", apiHandler.HandleGet)
+	// mux.HandleFunc("POST /data", apiHandler.HandlePost)
+	// mux.HandleFunc("PUT /update", apiHandler.HandlePut)
+	// mux.HandleFunc("DELETE /delete", apiHandler.HandleDelete)
+	// mux.HandleFunc("PATCH /modify", apiHandler.HandlePatch)
+	// mux.HandleFunc("OPTIONS /options", apiHandler.HandleOptions)
+	// mux.HandleFunc("HEAD /head", apiHandler.HandleHead)
+	// mux.HandleFunc("TRACE /trace", apiHandler.HandleTrace)
 
 	// Create server with configuration
 	server := &http.Server{

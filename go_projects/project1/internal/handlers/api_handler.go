@@ -2,101 +2,150 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
+	"go_project1/internal/database"
+	"go_project1/internal/models"
 	"net/http"
+	"strings"
+	"time"
 )
 
-type APIHandler struct {}
+// GetAllPosts returns all blog posts
+func GetAllPosts(w http.ResponseWriter, r *http.Request) {
+	posts, err := database.GetAllBlogPosts()
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-func NewAPIHandler() *APIHandler {
-	return &APIHandler{}
+	// Return JSON response
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(posts)
 }
 
-func (h *APIHandler) Hello(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /hello")
-    fmt.Fprintf(w, "hello\n")
+// GetPost returns a specific blog post by ID
+func GetPost(w http.ResponseWriter, r *http.Request) {
+	// Extract ID from URL path
+	// URL format: /api/posts/{id}
+	pathParts := strings.Split(r.URL.Path, "/")
+	if len(pathParts) < 3 {
+		http.Error(w, "Invalid URL path", http.StatusBadRequest)
+		return
+	}
+	id := pathParts[len(pathParts)-1]
+
+	post, exists, err := database.GetBlogPostByID(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if !exists {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+
+	// Return JSON response
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(post)
 }
 
-func (h *APIHandler) Headers(w http.ResponseWriter, req *http.Request) {
-    for name, headers := range req.Header {
-        for _, h := range headers {
-            fmt.Fprintf(w, "%v: %v\n", name, h)
-        }
-    }
+// CreatePost creates a new blog post
+func CreatePost(w http.ResponseWriter, r *http.Request) {
+	var post models.BlogPost
+	err := json.NewDecoder(r.Body).Decode(&post)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Generate a unique ID and set timestamps
+	newPost := models.NewBlogPost()
+	post.ID = newPost.ID
+	post.CreatedAt = newPost.CreatedAt
+	post.UpdatedAt = newPost.UpdatedAt
+
+	// Create the blog post
+	if err := database.CreateBlogPost(post); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Return JSON response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(post)
 }
 
-func (h *APIHandler) HandleGet(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /greet")
-	fmt.Fprintf(w, "GET request received\n")
+// UpdatePost updates an existing blog post
+func UpdatePost(w http.ResponseWriter, r *http.Request) {
+	// Extract ID from URL path
+	// URL format: /api/posts/{id}
+	pathParts := strings.Split(r.URL.Path, "/")
+	if len(pathParts) < 3 {
+		http.Error(w, "Invalid URL path", http.StatusBadRequest)
+		return
+	}
+	id := pathParts[len(pathParts)-1]
+
+	// Fetch the existing post
+	existingPost, exists, err := database.GetBlogPostByID(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if !exists {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+
+	// Parse the updated post from request body
+	var updatedPost models.BlogPost
+	err = json.NewDecoder(r.Body).Decode(&updatedPost)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// Make sure we're using the ID from the URL and preserving created_at
+	updatedPost.ID = id
+	updatedPost.CreatedAt = existingPost.CreatedAt
+	updatedPost.UpdatedAt = time.Now().Format(time.RFC3339)
+
+	// Update the post
+	if err := database.UpdateBlogPost(updatedPost); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Return JSON response
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(updatedPost)
 }
 
-func (h *APIHandler) HandlePost(w http.ResponseWriter, req *http.Request) {
-    contentType := req.Header.Get("Content-Type")
-    if contentType != "application/json" {
-        http.Error(w, "Content-Type must be application/json", http.StatusUnsupportedMediaType)
-        return
-    }
+// DeletePost deletes a blog post by ID
+func DeletePost(w http.ResponseWriter, r *http.Request) {
+	// Extract ID from URL path
+	// URL format: /api/posts/{id}
+	pathParts := strings.Split(r.URL.Path, "/")
+	if len(pathParts) < 3 {
+		http.Error(w, "Invalid URL path", http.StatusBadRequest)
+		return
+	}
+	id := pathParts[len(pathParts)-1]
 
-    body, err := io.ReadAll(req.Body)
-    if err != nil {
-        http.Error(w, fmt.Sprintf("Error reading body: %v", err), http.StatusBadRequest)
-        return
-    }
-    defer req.Body.Close()
+	// Delete the post
+	deleted, err := database.DeleteBlogPost(id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-    if len(body) == 0 {
-        http.Error(w, "Request body is empty", http.StatusBadRequest)
-        return
-    }
+	if !deleted {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
 
-    var data map[string]interface{}
-    if err := json.Unmarshal(body, &data); err != nil {
-        http.Error(w, fmt.Sprintf("Error parsing JSON: %v", err), http.StatusBadRequest)
-        return
-    }
-
-    fmt.Printf("Api call to /data with body: %v\n", data)
-
-    w.Header().Set("Content-Type", "application/json")
-    response := map[string]interface{}{
-        "message": "POST request received",
-        "status": "success",
-        "received_data": data,
-    }
-    
-    if err := json.NewEncoder(w).Encode(response); err != nil {
-        http.Error(w, fmt.Sprintf("Error encoding response: %v", err), http.StatusInternalServerError)
-        return
-    }
-}
-
-func (h *APIHandler) HandlePut(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /update")
-	fmt.Fprintf(w, "PUT request received\n")
-}
-
-func (h *APIHandler) HandleDelete(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /delete")
-	fmt.Fprintf(w, "DELETE request received\n")
-}
-
-func (h *APIHandler) HandlePatch(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /modify")
-	fmt.Fprintf(w, "PATCH request received\n")
-}
-
-func (h *APIHandler) HandleOptions(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /options")
-	fmt.Fprintf(w, "OPTIONS request received\n")
-}
-
-func (h *APIHandler) HandleHead(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /head")
-	fmt.Fprintf(w, "HEAD request received\n")
-}
-
-func (h *APIHandler) HandleTrace(w http.ResponseWriter, req *http.Request) {
-	fmt.Println("Api call to /trace")
-	fmt.Fprintf(w, "TRACE request received\n")
+	// Return success
+	w.WriteHeader(http.StatusNoContent)
 }

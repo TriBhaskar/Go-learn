@@ -2,6 +2,7 @@ package database
 
 import (
 	"go_project1/internal/models"
+	"log"
 
 	"github.com/hashicorp/go-memdb"
 )
@@ -41,6 +42,7 @@ func InitDB() error {
 		}
 		
 		DB = db
+		log.Println("Successfully connected to in-memory database")
 		return nil
 }
 
