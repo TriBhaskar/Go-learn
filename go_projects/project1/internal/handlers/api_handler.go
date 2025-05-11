@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"go_project1/internal/database"
 	"go_project1/internal/models"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -11,6 +12,7 @@ import (
 
 // GetAllPosts returns all blog posts
 func GetAllPosts(w http.ResponseWriter, r *http.Request) {
+	log.Println("GetAllPosts called")
 	posts, err := database.GetAllBlogPosts()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -24,6 +26,7 @@ func GetAllPosts(w http.ResponseWriter, r *http.Request) {
 
 // GetPost returns a specific blog post by ID
 func GetPost(w http.ResponseWriter, r *http.Request) {
+	log.Println("GetPost called")
 	// Extract ID from URL path
 	// URL format: /api/posts/{id}
 	pathParts := strings.Split(r.URL.Path, "/")
@@ -51,6 +54,7 @@ func GetPost(w http.ResponseWriter, r *http.Request) {
 
 // CreatePost creates a new blog post
 func CreatePost(w http.ResponseWriter, r *http.Request) {
+	log.Println("CreatePost called")
 	var post models.BlogPost
 	err := json.NewDecoder(r.Body).Decode(&post)
 	if err != nil {
@@ -78,6 +82,7 @@ func CreatePost(w http.ResponseWriter, r *http.Request) {
 
 // UpdatePost updates an existing blog post
 func UpdatePost(w http.ResponseWriter, r *http.Request) {
+	log.Println("UpdatePost called")
 	// Extract ID from URL path
 	// URL format: /api/posts/{id}
 	pathParts := strings.Split(r.URL.Path, "/")
@@ -125,6 +130,7 @@ func UpdatePost(w http.ResponseWriter, r *http.Request) {
 
 // DeletePost deletes a blog post by ID
 func DeletePost(w http.ResponseWriter, r *http.Request) {
+	log.Println("DeletePost called")
 	// Extract ID from URL path
 	// URL format: /api/posts/{id}
 	pathParts := strings.Split(r.URL.Path, "/")
@@ -145,7 +151,14 @@ func DeletePost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	}
+    // Create success response
+    response := map[string]interface{}{
+        "message": "Post deleted successfully",
+        "id":      id,
+    }
 
-	// Return success
-	w.WriteHeader(http.StatusNoContent)
+    // Return JSON response
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(response)
 }
