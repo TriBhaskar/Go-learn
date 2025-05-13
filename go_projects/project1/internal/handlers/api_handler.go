@@ -10,10 +10,51 @@ import (
 	"time"
 )
 
+// Handler struct to hold database interface
+type Handler struct {
+    db database.DatabaseInterface
+}
+
+// NewHandler creates a new handler instance
+func NewHandler(db database.DatabaseInterface) *Handler {
+    return &Handler{db: db}
+}
+
+func (h *Handler) BlogPostsHandler(w http.ResponseWriter, r *http.Request) {
+	// Check if the path is targeting a specific post or all posts
+	path := r.URL.Path
+	pathParts := strings.Split(path, "/")
+	
+	// Route for specific post (has ID): /api/posts/{id}
+	if len(pathParts) > 3 && pathParts[len(pathParts)-1] != "" {
+		switch r.Method {
+		case http.MethodGet:
+			h.GetPost(w, r)
+		case http.MethodPut:
+			h.UpdatePost(w, r)
+		case http.MethodDelete:
+			h.DeletePost(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+		return
+	}
+	
+	// Route for all posts: /api/posts
+	switch r.Method {
+	case http.MethodGet:
+		h.GetAllPosts(w, r)
+	case http.MethodPost:
+		h.CreatePost(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+	}
+}
+
 // GetAllPosts returns all blog posts
-func GetAllPosts(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetAllPosts(w http.ResponseWriter, r *http.Request) {
 	log.Println("GetAllPosts called")
-	posts, err := database.GetAllBlogPosts()
+	posts, err := h.db.GetAllPosts()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -25,7 +66,7 @@ func GetAllPosts(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetPost returns a specific blog post by ID
-func GetPost(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) GetPost(w http.ResponseWriter, r *http.Request) {
 	log.Println("GetPost called")
 	// Extract ID from URL path
 	// URL format: /api/posts/{id}
@@ -36,7 +77,7 @@ func GetPost(w http.ResponseWriter, r *http.Request) {
 	}
 	id := pathParts[len(pathParts)-1]
 
-	post, exists, err := database.GetBlogPostByID(id)
+	post, exists, err := h.db.GetPostByID(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -47,13 +88,12 @@ func GetPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return JSON response
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(post)
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(post)
 }
 
 // CreatePost creates a new blog post
-func CreatePost(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) CreatePost(w http.ResponseWriter, r *http.Request) {
 	log.Println("CreatePost called")
 	var post models.BlogPost
 	err := json.NewDecoder(r.Body).Decode(&post)
@@ -69,7 +109,7 @@ func CreatePost(w http.ResponseWriter, r *http.Request) {
 	post.UpdatedAt = newPost.UpdatedAt
 
 	// Create the blog post
-	if err := database.CreateBlogPost(post); err != nil {
+	if err := h.db.CreatePost(post); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -81,7 +121,7 @@ func CreatePost(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdatePost updates an existing blog post
-func UpdatePost(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) UpdatePost(w http.ResponseWriter, r *http.Request) {
 	log.Println("UpdatePost called")
 	// Extract ID from URL path
 	// URL format: /api/posts/{id}
@@ -93,7 +133,7 @@ func UpdatePost(w http.ResponseWriter, r *http.Request) {
 	id := pathParts[len(pathParts)-1]
 
 	// Fetch the existing post
-	existingPost, exists, err := database.GetBlogPostByID(id)
+	existingPost, exists, err := database.GetPostByID(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -112,24 +152,22 @@ func UpdatePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Make sure we're using the ID from the URL and preserving created_at
-	updatedPost.ID = id
-	updatedPost.CreatedAt = existingPost.CreatedAt
-	updatedPost.UpdatedAt = time.Now().Format(time.RFC3339)
+    updatedPost.ID = id
+    updatedPost.CreatedAt = existingPost.CreatedAt
+    updatedPost.UpdatedAt = time.Now().Format(time.RFC3339)
 
 	// Update the post
-	if err := database.UpdateBlogPost(updatedPost); err != nil {
+	if err := h.db.UpdatePost(updatedPost); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Return JSON response
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(updatedPost)
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(updatedPost)
 }
 
 // DeletePost deletes a blog post by ID
-func DeletePost(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) DeletePost(w http.ResponseWriter, r *http.Request) {
 	log.Println("DeletePost called")
 	// Extract ID from URL path
 	// URL format: /api/posts/{id}
@@ -141,7 +179,7 @@ func DeletePost(w http.ResponseWriter, r *http.Request) {
 	id := pathParts[len(pathParts)-1]
 
 	// Delete the post
-	deleted, err := database.DeleteBlogPost(id)
+	deleted, err := h.db.DeletePost(id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -157,7 +195,6 @@ func DeletePost(w http.ResponseWriter, r *http.Request) {
         "id":      id,
     }
 
-    // Return JSON response
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusOK)
     json.NewEncoder(w).Encode(response)

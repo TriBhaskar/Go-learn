@@ -9,7 +9,7 @@ import (
 
 var DB *memdb.MemDB
 
-func InitDB() error {
+func Initialize() error {
 	// Create the DB schema
 	schema := &memdb.DBSchema{
 		Tables: map[string]*memdb.TableSchema{
@@ -47,7 +47,7 @@ func InitDB() error {
 }
 
 // GetAllBlogPosts retrieves all blog posts from the database
-func GetAllBlogPosts() ([]models.BlogPost, error) {
+func GetAllPosts() ([]models.BlogPost, error) {
 	// Get a read transaction
 	txn := DB.Txn(false)
 	defer txn.Abort()
@@ -67,7 +67,7 @@ func GetAllBlogPosts() ([]models.BlogPost, error) {
 }
 
 // GetBlogPostByID retrieves a specific blog post by ID
-func GetBlogPostByID(id string) (models.BlogPost, bool, error) {
+func GetPostByID(id string) (models.BlogPost, bool, error) {
 	// Get a read transaction
 	txn := DB.Txn(false)
 	defer txn.Abort()
@@ -86,7 +86,7 @@ func GetBlogPostByID(id string) (models.BlogPost, bool, error) {
 }
 
 // CreateBlogPost adds a new blog post to the database
-func CreateBlogPost(post models.BlogPost) error {
+func CreatePost(post models.BlogPost) error {
 	// Start a write transaction
 	txn := DB.Txn(true)
 	defer txn.Abort()
@@ -102,7 +102,7 @@ func CreateBlogPost(post models.BlogPost) error {
 }
 
 // UpdateBlogPost updates an existing blog post
-func UpdateBlogPost(post models.BlogPost) error {
+func UpdatePost(post models.BlogPost) error {
 	// Start a write transaction
 	txn := DB.Txn(true)
 	defer txn.Abort()
@@ -118,7 +118,7 @@ func UpdateBlogPost(post models.BlogPost) error {
 }
 
 // DeleteBlogPost deletes a blog post by ID
-func DeleteBlogPost(id string) (bool, error) {
+func DeletePost(id string) (bool, error) {
 	// Start a write transaction
 	txn := DB.Txn(true)
 	defer txn.Abort()

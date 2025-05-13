@@ -15,13 +15,24 @@ import (
 
 func main() {
 	// Initialize handler
-	err := database.InitDB()
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
-	}
+
+    dbType := "inmemory" // Default to in-memory database
+    var db database.DatabaseInterface
+
+    switch dbType {
+    case "postgres":
+        db = database.NewPostgresDB()
+    default:
+        db = database.NewMemoryDB()
+    }
+
+    // Initialize database
+    if err := db.Initialize(); err != nil {
+        log.Fatalf("Failed to initialize database: %v", err)
+    }
 
 	// Create new serve mux
-	mux := routes.SetupRoutes()
+	mux := routes.SetupRoutes(db)
 
 	// Register routes
 	// mux.HandleFunc("/hello", apiHandler.Hello)
